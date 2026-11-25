@@ -1,0 +1,103 @@
+{
+  "patient_gender": [
+    "Female",
+    "Male",
+    "Non-binary",
+    "Prefer not to say"
+  ],
+  "patient_area": [
+    "Agege",
+    "Ajah",
+    "Apapa",
+    "Festac",
+    "Ikeja",
+    "Ikorodu",
+    "Lekki",
+    "Mushin",
+    "Other Lagos",
+    "Surulere",
+    "Victoria Island",
+    "Yaba"
+  ],
+  "marketing_source": [
+    "Health awareness",
+    "No campaign",
+    "Organic",
+    "Paid social",
+    "Referral campaign",
+    "Search ads"
+  ],
+  "service_interest": [
+    "Braces/orthodontics",
+    "Crowns/bridges",
+    "Dental consultation",
+    "Dental implant",
+    "Emergency dental care",
+    "Gum treatment",
+    "Paediatric dentistry",
+    "Root canal",
+    "Teeth cleaning",
+    "Teeth whitening",
+    "Tooth extraction",
+    "Toothache/pain"
+  ],
+  "inquiry_urgency": [
+    "Emergency",
+    "Routine",
+    "Soon (within 1 week)",
+    "Urgent (within 24 hours)"
+  ],
+  "insurance_type": [
+    "Dental plan",
+    "Employer HMO",
+    "No",
+    "Private HMO"
+  ],
+  "previous_booking_outcome": [
+    "Cancelled",
+    "Completed",
+    "No previous booking",
+    "No-show"
+  ],
+  "customer_sentiment": [
+    "Concerned",
+    "Negative",
+    "Neutral",
+    "Positive"
+  ],
+  "price_sensitivity": [
+    "High",
+    "Low",
+    "Medium"
+  ],
+  "quoted_price_band": [
+    "Below ₦20,000",
+    "₦100,000–₦249,999",
+    "₦20,000–₦49,999",
+    "₦250,000+",
+    "₦50,000–₦99,999"
+  ],
+  "payment_readiness": [
+    "Insurance confirmation pending",
+    "Needs price clarification",
+    "Needs to discuss/decide",
+    "Ready to pay"
+  ],
+  "appointment_availability": [
+    "Available in 1-2 weeks",
+    "Available in 3-7 days",
+    "Available within 2 days",
+    "Limited availability"
+  ],
+  "preferred_appointment_slot": [
+    "Saturday",
+    "Sunday",
+    "Weekday afternoon",
+    "Weekday evening",
+    "Weekday morning"
+  ],
+  "reminder_opt_in": [
+    "No",
+    "Yes"
+  ]
+}
