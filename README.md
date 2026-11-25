@@ -5,7 +5,7 @@ Branded for **Tolulope Emuleomo | Naija Data Professor | Waterside Tree Limited*
 
 ## Important model preparation
 
-The app expects these 19 features:
+The uploaded notebook's current feature selection retains `inquiry_id`. This is a unique record identifier, not a meaningful patient/inquiry predictor. Retrain the model after excluding it. The app expects these 19 features:
 
 ```python
 feature_columns = [
@@ -20,6 +20,56 @@ feature_columns = [
 x = df[feature_columns].copy()
 y = df["booked"]
 ```
+
+Retrain the complete preprocessing + Random Forest pipeline using these columns. Do not fit preprocessing separately on the full dataset; keep it inside the pipeline and fit only on training folds.
+
+## Export the model and category options
+
+Run this in the notebook after retraining and evaluating the corrected model. It assumes `best_rf_model` is the fitted best pipeline and `x_train` contains the corrected 19 columns.
+
+```python
+import json
+import joblib
+from pathlib import Path
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+
+# Save the entire fitted pipeline (preprocessing + classifier)
+joblib.dump(best_rf_model, "best_rf_model.joblib")
+
+# Save category values so the Streamlit form uses the same labels as training
+categorical_cols = x_train.select_dtypes(include=["object", "category"]).columns
+feature_options = {
+    col: sorted(x_train[col].dropna().astype(str).unique().tolist())
+    for col in categorical_cols
+}
+with open("feature_options.json", "w", encoding="utf-8") as f:
+    json.dump(feature_options, f, indent=2, ensure_ascii=False)
+
+# Evaluate at the chosen operating threshold on the held-out test set
+threshold = 0.40
+test_prob = best_rf_model.predict_proba(x_test)[:, 1]
+test_pred = (test_prob >= threshold).astype(int)
+
+metrics = {
+    "accuracy": float(accuracy_score(y_test, test_pred)),
+    "precision": float(precision_score(y_test, test_pred, zero_division=0)),
+    "recall": float(recall_score(y_test, test_pred, zero_division=0)),
+    "f1_score": float(f1_score(y_test, test_pred, zero_division=0)),
+    "roc_auc": float(roc_auc_score(y_test, test_prob)),
+    "threshold": threshold,
+    "evaluation_note": "Metrics calculated on the held-out test set at a 0.40 classification threshold."
+}
+with open("model_metrics.json", "w", encoding="utf-8") as f:
+    json.dump(metrics, f, indent=2)
+
+print("Export complete.")
+```
+
+Copy these three generated files into the same folder as `app.py`:
+
+- `best_rf_model.joblib`
+- `feature_options.json`
+- `model_metrics.json`
 
 **Important:** The application must receive the same feature names and compatible data types used to train the pipeline. The notebook's existing fitted model should not be used with this app until it has been retrained using the corrected feature list.
 
