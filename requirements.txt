@@ -1,20 +1,11 @@
-# Streamlit application
 streamlit
-
-# Data handling
 pandas
 numpy
 scipy
-
-# Machine learning and preprocessing
-scikit-learn
+scikit-learn==1.6.1
 imbalanced-learn
 xgboost
-
-# Model explainability and persistence
 shap
 joblib
-
-# Visualisation
 matplotlib
 seaborn
