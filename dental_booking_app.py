@@ -93,4 +93,358 @@ SOCIAL_LINKS = {
 # Environment information
 # ---------------------------------------------------------------------
 
-with st.expander("Environment information"):
+environment_details = {
+    "Python": sys.version.split()[0],
+    "Scikit-learn": sklearn.__version__,
+    "NumPy": np.__version__,
+    "SciPy": scipy.__version__,
+    "Joblib": joblib.__version__,
+}
+st.expander("Environment information").write(environment_details)
+
+
+# ---------------------------------------------------------------------
+# Model loading and validation
+# ---------------------------------------------------------------------
+
+@st.cache_resource
+def load_model(model_path: str):
+    return joblib.load(model_path)
+
+
+def validate_model(pipeline):
+    """Validate that the artifact is the expected fitted 10-feature pipeline."""
+    if not hasattr(pipeline, "named_steps"):
+        raise TypeError(
+            "The saved artifact is not an sklearn Pipeline. "
+            "Save the complete fitted preprocessing + classifier pipeline."
+        )
+
+    if "preprocessor" not in pipeline.named_steps:
+        raise ValueError("Pipeline is missing the 'preprocessor' step.")
+
+    if "classifier" not in pipeline.named_steps:
+        raise ValueError("Pipeline is missing the 'classifier' step.")
+
+    actual_features = list(getattr(pipeline, "feature_names_in_", []))
+    if not actual_features:
+        actual_features = list(
+            getattr(
+                pipeline.named_steps["preprocessor"],
+                "feature_names_in_",
+                [],
+            )
+        )
+
+    if actual_features and actual_features != FEATURES:
+        raise ValueError(
+            "Model feature schema does not match the app. "
+            f"Expected {FEATURES}; model has {actual_features}."
+        )
+
+    classes = list(pipeline.named_steps["classifier"].classes_)
+    if 0 not in classes or 1 not in classes:
+        raise ValueError(
+            "The classifier must contain class 0 (No Booking) "
+            "and class 1 (Booked)."
+        )
+
+
+def get_encoder_categories(pipeline):
+    """Read the fitted categorical categories from the preprocessing pipeline."""
+    preprocessor = pipeline.named_steps["preprocessor"]
+
+    for transformer_name, transformer, columns in preprocessor.transformers_:
+        if transformer_name != "cat":
+            continue
+        if transformer in ("drop", "passthrough"):
+            continue
+
+        encoder = None
+
+        if hasattr(transformer, "named_steps"):
+            for step in transformer.named_steps.values():
+                if hasattr(step, "categories_"):
+                    encoder = step
+                    break
+        elif hasattr(transformer, "categories_"):
+            encoder = transformer
+
+        if encoder is not None:
+            return {
+                column: list(categories)
+                for column, categories in zip(columns, encoder.categories_)
+            }
+
+    raise ValueError(
+        "Could not find the fitted OrdinalEncoder categories. "
+        "Check the categorical transformer name and preprocessing pipeline."
+    )
+
+
+if not MODEL_PATH.exists():
+    st.error(
+        f"Model file not found: {MODEL_PATH.name}. "
+        "Place the fitted 10-feature Joblib pipeline beside this script."
+    )
+    st.stop()
+
+try:
+    model = load_model(str(MODEL_PATH))
+    validate_model(model)
+    categorical_options = get_encoder_categories(model)
+except Exception as exc:
+    st.error(
+        "The model could not be loaded or validated. Confirm that this is "
+        "the fitted 10-feature pipeline and that deployment package versions "
+        "match the training environment."
+    )
+    st.exception(exc)
+    st.stop()
+
+
+# ---------------------------------------------------------------------
+# Input form
+# ---------------------------------------------------------------------
+
+def to_python_scalar(value):
+    return value.item() if isinstance(value, np.generic) else value
+
+
+def get_input_data(category_map):
+    values = {}
+
+    st.subheader("Patient inquiry information")
+    st.caption(
+        "Enter information available at the point when the clinic wants "
+        "to assess the likelihood that an inquiry will not become a booking."
+    )
+
+    left, right = st.columns(2)
+
+    for index, feature in enumerate(FEATURES):
+        container = left if index % 2 == 0 else right
+        label = FEATURE_LABELS[feature]
+
+        with container:
+            if feature in NUMERIC_RANGES:
+                minimum, maximum, default = NUMERIC_RANGES[feature]
+
+                if feature == "distance_to_clinic_km":
+                    values[feature] = st.number_input(
+                        label,
+                        min_value=float(minimum),
+                        max_value=float(maximum),
+                        value=float(default),
+                        step=0.1,
+                    )
+                else:
+                    values[feature] = st.number_input(
+                        label,
+                        min_value=int(minimum),
+                        max_value=int(maximum),
+                        value=int(default),
+                        step=1,
+                    )
+            else:
+                options = [
+                    to_python_scalar(item)
+                    for item in category_map.get(feature, [])
+                ]
+
+                if not options:
+                    st.error(
+                        f"No trained categories were found for {feature}. "
+                        "Check the fitted categorical encoder."
+                    )
+                    values[feature] = None
+                else:
+                    values[feature] = st.selectbox(
+                        label,
+                        options=options,
+                        key=f"input_{feature}",
+                    )
+
+    return values
+
+
+# ---------------------------------------------------------------------
+# Main interface
+# ---------------------------------------------------------------------
+
+st.title("🦷 Dental Healthcare Booking Prediction")
+
+# Prominent developer and consultancy contact banner
+with st.container(border=True):
+    st.subheader("Developed by Tolulope Emuleomo | Naija Data Professor")
+    st.markdown(
+        "**Healthcare Analytics • Data Science • Machine Learning**  "
+        "\\n**Consultancy:** Waterside Tree Limited"
+    )
+    st.markdown(
+        f"🌐 [Waterside Tree]({CONSULTANCY_WEBSITE})  |  "
+        f"✉️ [Contact by email](mailto:{CONTACT_EMAIL})"
+    )
+    st.markdown(
+        f"🔗 [LinkedIn]({SOCIAL_LINKS['LinkedIn']})  |  "
+        f"[X / Twitter]({SOCIAL_LINKS['X (Twitter)']})  |  "
+        f"[Medium]({SOCIAL_LINKS['Medium']})  |  "
+        f"[GitHub]({SOCIAL_LINKS['GitHub']})"
+    )
+
+st.write(
+    "Estimate whether a patient inquiry is likely to result in a confirmed "
+    "appointment. Use the result to support timely and appropriate follow-up."
+)
+
+st.info(
+    "This application is a decision-support tool. Predictions are estimates, "
+    "not certainties, and should not be used to deny patients access to care."
+)
+
+with st.sidebar:
+    st.header("Prediction settings")
+    no_booking_threshold = st.slider(
+        "No Booking probability threshold",
+        min_value=0.05,
+        max_value=0.95,
+        value=float(DEFAULT_NO_BOOKING_THRESHOLD),
+        step=0.01,
+        help=(
+            "Use the threshold selected on validation data. An inquiry is "
+            "flagged as No Booking when its Class 0 probability reaches "
+            "or exceeds this threshold."
+        ),
+    )
+    st.caption("Class 0 = No Booking | Class 1 = Booked")
+
+
+with st.form("booking_prediction_form"):
+    input_values = get_input_data(categorical_options)
+    submitted = st.form_submit_button(
+        "Predict booking outcome",
+        type="primary",
+        use_container_width=True,
+    )
+
+
+# ---------------------------------------------------------------------
+# Prediction
+# ---------------------------------------------------------------------
+
+if submitted:
+    if any(value is None for value in input_values.values()):
+        st.error("Please resolve the missing categorical inputs before predicting.")
+        st.stop()
+
+    input_df = pd.DataFrame(
+        [[input_values[feature] for feature in FEATURES]],
+        columns=FEATURES,
+    )
+
+    try:
+        probabilities = model.predict_proba(input_df)[0]
+        classes = list(model.named_steps["classifier"].classes_)
+
+        no_booking_index = classes.index(0)
+        booked_index = classes.index(1)
+
+        no_booking_probability = float(probabilities[no_booking_index])
+        booked_probability = float(probabilities[booked_index])
+
+        # Apply the selected threshold to Class 0 (No Booking).
+        predicted_class = (
+            0 if no_booking_probability >= no_booking_threshold else 1
+        )
+
+        st.divider()
+        st.subheader("Prediction result")
+
+        col1, col2 = st.columns(2)
+        col1.metric(
+            "Probability of No Booking",
+            f"{no_booking_probability:.1%}",
+        )
+        col2.metric(
+            "Probability of Booking",
+            f"{booked_probability:.1%}",
+        )
+
+        if predicted_class == 0:
+            st.warning(
+                "### Predicted outcome: No Booking\n\n"
+                "This inquiry meets the configured No Booking threshold. "
+                "Consider reviewing the patient's concerns and offering "
+                "appropriate follow-up."
+            )
+        else:
+            st.success(
+                "### Predicted outcome: Booked\n\n"
+                "This inquiry does not meet the configured No Booking "
+                "threshold. Continue the normal booking process and confirm "
+                "the appointment."
+            )
+
+        st.write("**Predicted probability distribution**")
+        probability_df = pd.DataFrame(
+            {
+                "Outcome": ["No Booking", "Booked"],
+                "Probability": [
+                    no_booking_probability,
+                    booked_probability,
+                ],
+            }
+        )
+        st.bar_chart(
+            probability_df.set_index("Outcome"),
+            y="Probability",
+        )
+
+        with st.expander("Review submitted inquiry information"):
+            readable_input = {
+                FEATURE_LABELS[feature]: input_values[feature]
+                for feature in FEATURES
+            }
+            st.dataframe(
+                pd.DataFrame([readable_input]),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+        st.caption(
+            f"Decision threshold for No Booking: {no_booking_threshold:.2f}. "
+            "Because the model was trained using undersampling, probability "
+            "calibration should be checked using data that retains the "
+            "original class distribution."
+        )
+
+    except Exception as exc:
+        st.error(
+            "Prediction failed. Check that the saved model, input schema "
+            "and installed package versions are compatible."
+        )
+        st.exception(exc)
+
+
+# ---------------------------------------------------------------------
+# Footer
+# ---------------------------------------------------------------------
+
+st.divider()
+st.caption(
+    "Dental Healthcare Inquiry & Booking Prediction | "
+    "Random Forest | Explainable Machine Learning"
+)
+
+st.markdown("---")
+st.markdown("### Built and maintained by")
+st.markdown(f"**{DEVELOPER_NAME}**")
+st.markdown(f"Consultancy: **{CONSULTANCY_NAME}** · [Website]({CONSULTANCY_WEBSITE})")
+st.markdown(f"Professional enquiries: [{CONTACT_EMAIL}](mailto:{CONTACT_EMAIL})")
+st.markdown(
+    " | ".join(f"[{platform}]({url})" for platform, url in SOCIAL_LINKS.items())
+)
+st.caption(
+    "For analytics consulting, healthcare intelligence, machine learning "
+    "solutions and professional enquiries, please use the contact links above."
+)
