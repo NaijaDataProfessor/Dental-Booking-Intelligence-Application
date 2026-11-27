@@ -23,7 +23,7 @@ import streamlit as st
 # ---------------------------------------------------------------------
 
 APP_DIR = Path(__file__).resolve().parent
-MODEL_PATH = APP_DIR / "dental_booking_rf_model.joblib"
+MODEL_PATH = APP_DIR / "dental_booking_model_10_features.joblib"
 
 # Replace 0.50 with the best_threshold printed by your validation analysis.
 DEFAULT_NO_BOOKING_THRESHOLD = 0.50
