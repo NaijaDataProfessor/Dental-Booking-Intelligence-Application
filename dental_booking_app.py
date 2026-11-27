@@ -13,10 +13,20 @@ validation data. Do not tune it against the final test set.
 """
 
 from pathlib import Path
-import joblib
+import sklearn
 import numpy as np
-import pandas as pd
+import scipy
+import joblib
+import sys
 import streamlit as st
+
+st.subheader("Environment Information")
+
+st.write("Python:", sys.version)
+st.write("Scikit-learn:", sklearn.__version__)
+st.write("NumPy:", np.__version__)
+st.write("SciPy:", scipy.__version__)
+st.write("Joblib:", joblib.__version__)
 
 # ---------------------------------------------------------------------
 # Configuration
