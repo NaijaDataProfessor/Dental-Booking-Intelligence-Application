@@ -1,128 +1,273 @@
-# Dental Booking Intelligence — Streamlit starter project
+# 🦷 Dental Healthcare Inquiry & Booking Prediction System
 
-A stakeholder-facing Streamlit application for the dental inquiry booking-classification model.
-Branded for **Tolulope Emuleomo | Naija Data Professor | Waterside Tree Limited**.
+### An Explainable Machine Learning Approach to Identifying Patients Unlikely to Book Dental Appointments
 
-## Important model preparation
+## 📌 Project Overview
 
-The uploaded notebook's current feature selection retains `inquiry_id`. This is a unique record identifier, not a meaningful patient/inquiry predictor. Retrain the model after excluding it. The app expects these 19 features:
+Dental healthcare centres receive patient inquiries through multiple communication channels. However, not every inquiry results in a confirmed appointment.
 
-```python
-feature_columns = [
-    "patient_age", "patient_gender", "patient_area",
-    "distance_to_clinic_km", "marketing_source", "service_interest",
-    "inquiry_urgency", "insurance_type", "prior_clinic_visits",
-    "previous_booking_outcome", "response_time_minutes", "follow_up_count",
-    "customer_sentiment", "price_sensitivity", "quoted_price_band",
-    "payment_readiness", "appointment_availability",
-    "preferred_appointment_slot", "reminder_opt_in"
-]
-x = df[feature_columns].copy()
-y = df["booked"]
-```
+Some patients express interest in dental services but eventually fail to book appointments due to factors such as payment readiness, pricing concerns, customer experience, appointment availability and previous booking behaviour.
 
-Retrain the complete preprocessing + Random Forest pipeline using these columns. Do not fit preprocessing separately on the full dataset; keep it inside the pipeline and fit only on training folds.
+This project develops a machine learning classification system to predict whether a patient inquiry will result in a confirmed dental appointment.
 
-## Export the model and category options
+The primary business objective is to identify patients who are unlikely to book, enabling dental healthcare providers to prioritise follow-up activities, understand potential booking barriers and improve patient conversion rates.
 
-Run this in the notebook after retraining and evaluating the corrected model. It assumes `best_rf_model` is the fitted best pipeline and `x_train` contains the corrected 19 columns.
+The project also incorporates SHAP (SHapley Additive exPlanations) to interpret model predictions and identify the factors influencing patients' booking decisions.
 
-```python
-import json
-import joblib
-from pathlib import Path
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+## 🎯 Business Objectives
 
-# Save the entire fitted pipeline (preprocessing + classifier)
-joblib.dump(best_rf_model, "best_rf_model.joblib")
+- Identify patient inquiries that are unlikely to convert into appointments.
+- Understand the factors associated with unsuccessful booking outcomes.
+- Evaluate patient behaviour and booking patterns across different inquiry channels.
+- Help dental clinics prioritise follow-up activities.
+- Apply explainable artificial intelligence to improve model transparency.
+- Develop a lightweight predictive model suitable for application deployment.
 
-# Save category values so the Streamlit form uses the same labels as training
-categorical_cols = x_train.select_dtypes(include=["object", "category"]).columns
-feature_options = {
-    col: sorted(x_train[col].dropna().astype(str).unique().tolist())
-    for col in categorical_cols
-}
-with open("feature_options.json", "w", encoding="utf-8") as f:
-    json.dump(feature_options, f, indent=2, ensure_ascii=False)
+## 🗂️ Dataset Overview
 
-# Evaluate at the chosen operating threshold on the held-out test set
-threshold = 0.40
-test_prob = best_rf_model.predict_proba(x_test)[:, 1]
-test_pred = (test_prob >= threshold).astype(int)
+The project uses a dental healthcare inquiry dataset stored in Databricks.
 
-metrics = {
-    "accuracy": float(accuracy_score(y_test, test_pred)),
-    "precision": float(precision_score(y_test, test_pred, zero_division=0)),
-    "recall": float(recall_score(y_test, test_pred, zero_division=0)),
-    "f1_score": float(f1_score(y_test, test_pred, zero_division=0)),
-    "roc_auc": float(roc_auc_score(y_test, test_prob)),
-    "threshold": threshold,
-    "evaluation_note": "Metrics calculated on the held-out test set at a 0.40 classification threshold."
-}
-with open("model_metrics.json", "w", encoding="utf-8") as f:
-    json.dump(metrics, f, indent=2)
+The dataset is accessed through a Databricks table and converted into a Pandas DataFrame for further analysis.
 
-print("Export complete.")
-```
+The target variable is:
 
-Copy these three generated files into the same folder as `app.py`:
+| Target | Description |
+|---|---|
+| 0 | No Booking |
+| 1 | Booked |
 
-- `best_rf_model.joblib`
-- `feature_options.json`
-- `model_metrics.json`
+The dataset contains patient inquiry information, demographic characteristics, financial readiness indicators, historical booking behaviour and operational variables.
 
-**Important:** The application must receive the same feature names and compatible data types used to train the pipeline. The notebook's existing fitted model should not be used with this app until it has been retrained using the corrected feature list.
+The notebook initially selects up to 500,000 records for the modelling exercise.
 
-## Run locally
+## 🔍 Exploratory Data Analysis
 
-```bash
-# Create and activate a virtual environment (recommended)
-python -m venv .venv
+Exploratory Data Analysis was performed to understand patient inquiry patterns and booking behaviour.
 
-# Windows PowerShell
-.venv\Scripts\Activate.ps1
+The analysis included:
 
-# Install dependencies
-pip install -r requirements.txt
+- Dataset structure and descriptive statistics.
+- Duplicate and missing-value checks.
+- Unique value analysis.
+- Patient inquiry distribution by geographical area.
+- Booked and unbooked inquiries by patient area.
+- Inquiry channel distribution.
+- Booking patterns across inquiry channels.
+- Marketing source analysis.
+- Comparison of booked and unbooked inquiries.
 
-# Start Streamlit
-streamlit run app.py
-```
+SQL and Python were used together to investigate the underlying data and generate analytical visualisations.
 
-## Deploy with Streamlit Community Cloud
+## ⚙️ Data Preparation and Preprocessing
 
-1. Create a GitHub repository for this project.
-2. Add `app.py`, `requirements.txt`, and the three model export files.
-3. Push the repository to GitHub.
-4. Sign in to Streamlit Community Cloud and create an app from the repository.
-5. Select `app.py` as the application entry point and deploy.
+The following preparation steps were implemented:
 
-Keep the repository private if the model or data is confidential. Do not upload patient-level records or personally identifiable information. A serialized model can also reveal information about its training data, so follow the clinic's data governance and approval requirements before hosting it.
+1. Standardisation of column names.
+2. Inspection of missing values and duplicate records.
+3. Separation of independent variables and the target variable.
+4. Training and testing data partitioning.
+5. Handling missing numerical values using median imputation.
+6. Handling missing categorical values using most-frequent imputation.
+7. Numerical feature scaling using StandardScaler.
+8. Categorical encoding using OrdinalEncoder.
+9. Class balancing using RandomUnderSampler on the training data.
 
-## Application sections
+The test dataset retains its original class distribution to support evaluation on data that better reflects the observed population.
 
-- Executive Overview
-- Booking Prediction
-- Model Performance
-- About the Developer
+## 🤖 Machine Learning Models
 
-## Operational and governance notes
+Two tree-based classification algorithms were explored.
 
-- The default classification threshold is 0.40, matching the selected operating point in the notebook.
-- A predicted booking probability is an estimate, not a guarantee.
-- This is an operational decision-support tool, not a clinical diagnostic system.
-- Validate the model on representative, recent data before stakeholder use.
-- Review subgroup performance, calibration, drift, access controls and data retention.
-- Do not enter patient names, phone numbers, addresses or other direct identifiers into the app.
-- Treat predictions as one input to staff judgement, not an automated decision to deny service.
+### 1. Random Forest Classifier
 
-## Developer and contact
+Random Forest was implemented as the primary classification model.
 
-**Tolulope Emuleomo — Naija Data Professor**  
-Waterside Tree Limited
+The model combines multiple decision trees to identify patterns associated with patient booking outcomes.
 
-- LinkedIn: https://www.linkedin.com/in/tolulope-emuleomo-77a231270/
-- X: https://x.com/naijadataprof
-- Medium: https://medium.com/@dataprofessor_
-- Website: https://watersidetree.com
-- Email: dataprofessor290@gmail.com
+The model was subsequently developed into a reduced-feature version using the ten predictors identified through SHAP analysis.
+
+### 2. XGBoost Classifier
+
+XGBoost was implemented as an additional classification experiment.
+
+The model uses gradient boosting to identify complex relationships between patient inquiry characteristics and booking outcomes.
+
+Both models were trained using the balanced training dataset.
+
+## 📊 Model Evaluation
+
+Model performance was assessed using the following evaluation metrics:
+
+| Metric | Purpose |
+|---|---|
+| Accuracy | Overall proportion of correct predictions |
+| Precision | Reliability of positive predictions |
+| Recall | Ability to identify actual cases belonging to a class |
+| F1-score | Balance between precision and recall |
+| ROC-AUC | Ability to distinguish between the two classes |
+| Confusion Matrix | Distribution of correct and incorrect predictions |
+
+**Primary evaluation objective:**
+
+Since the business focus is identifying patients who do not book appointments, particular attention is given to:
+
+- Recall for Class 0 (No Booking).
+- Precision for Class 0 (No Booking).
+- F1-score for Class 0 (No Booking).
+
+## 🎚️ Classification Threshold Optimisation
+
+Rather than relying exclusively on the default 0.50 classification threshold, different probability thresholds were investigated.
+
+The objective is to identify an appropriate operating threshold that improves the model's ability to identify patients unlikely to book.
+
+The analysis evaluates thresholds between 0.10 and 0.95.
+
+Performance is assessed using:
+
+- No Booking precision.
+- No Booking recall.
+- No Booking F1-score.
+- Booked precision and recall.
+- Predicted booking and non-booking distributions.
+
+The initial threshold-selection criterion is the highest F1-score for Class 0.
+
+This provides a balance between identifying actual non-bookings and limiting incorrect non-booking predictions.
+
+## 🧠 Explainable AI: SHAP Analysis
+
+SHAP was incorporated to understand how individual predictors contribute to the model's predictions.
+
+Three major visualisation techniques were used:
+
+### 1. SHAP Feature Importance
+
+Identifies the variables with the greatest overall influence on the model's predictions.
+
+### 2. SHAP Summary (Beeswarm) Plot
+
+Shows how high and low feature values influence individual predictions and the direction of their contributions.
+
+### 3. SHAP Waterfall Plot
+
+Explains how individual patient characteristics contribute to a specific prediction, starting from the model's baseline output.
+
+The SHAP analysis informed the selection of a reduced set of predictors for the deployment model.
+
+## ⭐ Selected Features for Application Deployment
+
+Based on the global SHAP feature importance results, ten predictors were selected for the reduced-feature Random Forest model.
+
+| No. | Predictor | Description |
+|---:|---|---|
+| 1 | payment_readiness | Patient's financial readiness to proceed |
+| 2 | customer_sentiment | Patient sentiment during inquiry |
+| 3 | previous_booking_outcome | Historical booking outcome |
+| 4 | price_sensitivity | Patient sensitivity to treatment pricing |
+| 5 | appointment_availability | Availability of suitable appointment slots |
+| 6 | response_time_minutes | Time taken to respond to an inquiry |
+| 7 | inquiry_urgency | Urgency associated with the inquiry |
+| 8 | prior_clinic_visits | Previous visits to the dental clinic |
+| 9 | follow_up_count | Number of follow-up interactions |
+| 10 | distance_to_clinic_km | Patient's distance from the clinic |
+
+These predictors were selected to support a more manageable application interface while retaining important financial, behavioural and operational information.
+
+A new Random Forest pipeline was trained using these ten predictors.
+
+The reduced-feature model is intended for subsequent application deployment.
+
+## 🏗️ Project Workflow
+
+The analytical workflow follows these stages:
+
+1. Data extraction from Databricks.
+2. Exploratory data analysis using SQL and Python.
+3. Data cleaning and preprocessing.
+4. Train-test partitioning.
+5. Class balancing through random undersampling.
+6. Random Forest and XGBoost model development.
+7. Classification threshold evaluation.
+8. SHAP-based model explainability.
+9. Selection of ten deployment predictors.
+10. Reduced-feature Random Forest training.
+11. Threshold optimisation for No Booking.
+12. Final model evaluation.
+13. Model persistence using Joblib.
+
+## 🛠️ Technologies and Libraries
+
+| Technology | Application |
+|---|---|
+| Python | Machine learning and data analysis |
+| SQL | Data extraction and exploration |
+| Databricks | Data storage and processing |
+| Pandas | Data manipulation |
+| NumPy | Numerical computation |
+| Matplotlib | Data visualisation |
+| Seaborn | Statistical visualisation |
+| Scikit-learn | Preprocessing, classification and evaluation |
+| Imbalanced-learn | Class balancing |
+| XGBoost | Gradient boosting classification |
+| SHAP | Model explainability |
+| Joblib | Model persistence |
+
+## 💾 Model Persistence
+
+The reduced-feature Random Forest pipeline is saved using Joblib.
+
+The notebook saves the model to a Databricks Unity Catalog Volume:
+
+`/Volumes/dental_healthcare/default/models/dental_booking/dental_booking_model_10_features.joblib`
+
+The complete pipeline includes preprocessing and classification components.
+
+The selected classification threshold should also be saved as a deployment configuration alongside the model.
+
+## 🚀 Future Deployment
+
+The next development phase is to build a Streamlit application around the reduced-feature Random Forest model.
+
+The proposed application will allow dental healthcare personnel to:
+
+- Enter patient inquiry information.
+- Obtain booking probability estimates.
+- Identify inquiries with a high probability of No Booking.
+- View the model's main contributing factors.
+- Prioritise patients for follow-up.
+- Support data-driven patient engagement decisions.
+
+The application is intended as a decision-support tool rather than an automatic replacement for clinical or administrative judgement.
+
+## ⚠️ Limitations and Considerations
+
+- Model predictions depend on the quality and representativeness of the underlying inquiry data.
+- Undersampling changes the training class distribution and may affect probability calibration.
+- SHAP identifies model associations and contributions, not causal relationships.
+- Predictors must be available at the time the prediction is made to avoid data leakage.
+- The reduced-feature model requires independent performance validation.
+- Threshold selection should use a separate validation dataset, while the final test dataset must remain untouched until final evaluation.
+- Historical booking outcomes and follow-up variables must be assessed for availability and potential target leakage before deployment.
+
+## 📌 Business Impact
+
+This project demonstrates how machine learning and explainable artificial intelligence can support dental healthcare operations beyond traditional reporting.
+
+By identifying inquiries with a high likelihood of non-booking, dental healthcare providers can gain better visibility into potential booking losses and direct follow-up resources towards patients who may need additional assistance.
+
+The ultimate goal is to transform patient inquiry data into actionable intelligence that supports improved booking conversion, better patient engagement and more informed operational decisions.
+
+---
+
+**Project Category:** Healthcare Analytics | Predictive Modelling | Explainable AI | Binary Classification
+
+**Primary Model:** Random Forest Classifier
+
+**Additional Model:** XGBoost Classifier
+
+**Explainability Framework:** SHAP
+
+**Deployment Direction:** Streamlit
+
+**Developed by:** Tolulope Emuleomo | Naija Data Professor
