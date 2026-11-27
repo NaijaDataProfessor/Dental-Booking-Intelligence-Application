@@ -2,7 +2,7 @@
 Dental Healthcare Booking Prediction App
 
 Run:
-    streamlit run dental_booking_app.py
+    streamlit run dental_booking_app_update.py
 
 Place dental_booking_model_10_features.joblib in the same directory.
 Use the same Python and package versions used to train the saved pipeline.
