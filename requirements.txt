@@ -1,5 +1,20 @@
-streamlit>=1.35
-pandas>=2.0
-scikit-learn>=1.3
-joblib>=1.3
-numpy>=1.24
+# Streamlit application
+streamlit
+
+# Data handling
+pandas
+numpy
+scipy
+
+# Machine learning and preprocessing
+scikit-learn
+imbalanced-learn
+xgboost
+
+# Model explainability and persistence
+shap
+joblib
+
+# Visualisation
+matplotlib
+seaborn
